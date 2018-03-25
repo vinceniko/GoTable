@@ -769,6 +769,6 @@ func (t *Table) ToMap(axis int) map[interface{}]interface{} {
 }
 
 func main() {
-	testFor := FromCSVFile("test.csv", true, true)
+	testFor := FromCSVFile("Data/test.csv", true, true)
 	testFor.PrintTable()
 }
