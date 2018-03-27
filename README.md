@@ -1,4 +1,4 @@
-GoTables
+GoTable
 ===============================
 
 version number: 0.0.1
