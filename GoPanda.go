@@ -616,7 +616,7 @@ func (t *Table) PairedSliceLoc(axis int, vals ...interface{}) ([]interface{}, []
 		panic("panic")
 	}
 
-	// need appends because unless we itterate through all indices in map, we wont know how big to make the returned slices
+	// needs appends because unless we itterate through all indices in map, we wont know how big to make the returned slices
 	outSlice := make([][]interface{}, 0)
 	outvals := make([]interface{}, 0)
 	for _, name := range vals {
@@ -639,7 +639,7 @@ func (t *Table) PairedSliceLoc(axis int, vals ...interface{}) ([]interface{}, []
 	return outvals, outSlice // extract nested list
 }
 
-// Index returns Index of a specific string element in a slice. Used for _SliceLoc to find Index position of name in Data.name field
+// Index returns Index of a specific string element in a slice
 func Index(search interface{}, slice []interface{}) (int, error) {
 	for i, val := range slice {
 		if search == val {
@@ -662,26 +662,24 @@ func createDupeMap(m map[interface{}]interface{}, keys []interface{}, slices [][
 				m[key].([]interface{})[j] = slices[i][k] // change each element of the nested slice
 				k++
 			}
-			k = 0 // reset the index position of slice
 			counter[key] = 1
 		} else if counter[key] == 0 { // if key exists in map but we are at a new table and counter has reset
 			for j := *index; j < *index+length; j++ {
 				m[key].([]interface{})[j] = slices[i][k]
 				k++
 			}
-			k = 0
 			counter[key] = 1
 		} else { // key exists and counter has not been reset
 			key = key.(string) + "_" + strconv.Itoa(counter[key]) // create dupe key name
-			if _, ok := m[key]; !ok {                             // create key if its not already there
+			if _, ok := m[key]; !ok {                             // create slice for key if its not already there
 				m[key] = make([]interface{}, totalLength)
 			}
 			for j := *index; j < *index+length; j++ { // change each element of nested list
 				m[key].([]interface{})[j] = slices[i][k]
 				k++
 			}
-			k = 0
 		}
+		k = 0 // reset the index position of slice
 		newKeys[i] = key
 	}
 	*index += length

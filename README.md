@@ -33,8 +33,9 @@ To Do:
 * Others
   * If I or someone else has ideas to implement
 
-Example:
+Examples:
 --------
+## 1. Concatenate Two Tables
 ```Go
 table1 := FromCSVFile("Data/test.csv", true, true)
 table1.PrintTable()
