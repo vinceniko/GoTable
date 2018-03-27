@@ -27,8 +27,9 @@ Current Features:
 
 To Do:
 -----------------
-* Implement to slices
+* Implement writing to slices
 * Clean up and document code
+* Potential speed ups
 * Others
   * If I or someone else has ideas to implement
 

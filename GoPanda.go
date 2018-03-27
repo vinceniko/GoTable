@@ -824,16 +824,21 @@ func Concat(axis int, tables ...*Table) *Table {
 		}
 
 		headerVals := make([]interface{}, 0)
+		var newNames []interface{}
+
 		currIndex := 0
 		indexptr := &currIndex
-		var names []interface{}
 		for _, table := range tables {
+			var names []interface{}
 			var slices [][]interface{}
 			uniqs := getuniqs(table.Header.Slice)
 			names, slices = table.PairedSliceLoc(1, uniqs...)
 
-			headerVals, m = createDupeMap(m, names, slices, table.Index.Length, totalLength, indexptr)
+			newNames, m = createDupeMap(m, names, slices, table.Index.Length, totalLength, indexptr)
+			headerVals = append(headerVals, newNames...)
 		}
+
+		headerVals = getuniqs(headerVals)
 
 		t = FromMap(1, m)
 		t.Index = CreateMS(newIndexVals, tables[0].Index.Header)
