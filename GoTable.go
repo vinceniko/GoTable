@@ -845,7 +845,7 @@ func Concat(axis int, tables ...*Table) *Table {
 	return t
 }
 
-func (t *Table) getAxisLabels(axis Axis) (headerName interface{}, headerSlice []interface{}) {
+func (t *Table) getAxisLabels(axis _Axis) (headerName interface{}, headerSlice []interface{}) {
 	if axis == 0 {
 		headerName = t.Index.Header
 		headerSlice = t.Index.Slice
@@ -856,7 +856,7 @@ func (t *Table) getAxisLabels(axis Axis) (headerName interface{}, headerSlice []
 	return
 }
 
-func (t *Table) getOrientation(axis Axis) *Table {
+func (t *Table) getOrientation(axis _Axis) *Table {
 	if axis == 1 {
 		t = t.Transpose()
 	} else if axis != 0 {
@@ -865,34 +865,43 @@ func (t *Table) getOrientation(axis Axis) *Table {
 	return t
 }
 
-func (t *Table) getAxisAll(axis Axis) (headerName interface{}, headerSlice []interface{}, vals [][]interface{}) {
+func (t *Table) getAxisAll(axis _Axis) (headerName interface{}, headerSlice []interface{}, vals [][]interface{}) {
 	headerName, headerSlice = t.getAxisLabels(axis)
 	vals = t.getOrientation(axis).Vals
 
 	return headerName, headerSlice, vals
 }
 
-type Axis uint8
+type _Axis uint8
 
-// Axis.checkError checks to see whether axis is an int other than 0 and 1
-func (a *Axis) checkError() {
+// _Axis.checkError checks to see whether axis is an int other than 0 and 1
+func (a *_Axis) checkError() {
 	if (*a != 0) && (*a != 1) {
 		panic("panic")
 	}
 }
 
-// Axis.Opposite changes 0 to 1 and 1 to 0
-func (a *Axis) Opposite() {
+// _Axis.Opposite changes 0 to 1 and 1 to 0
+func (a *_Axis) Opposite() _Axis {
 	a.checkError()
 	if *a == 0 {
 		*a = 1
 	} else {
 		*a = 0
 	}
+	return *a
+}
+
+// Axis creates a new axis object and checks for error
+func Axis(axis int) _Axis {
+	a := _Axis(axis)
+	a.checkError()
+
+	return a
 }
 
 // ToMap converts a Table to a map along a given axis (discards other axis)
-func (t *Table) ToMap(axis Axis) map[interface{}]interface{} {
+func (t *Table) ToMap(axis _Axis) map[interface{}]interface{} {
 	m := make(map[interface{}]interface{})
 
 	var headerName interface{}
@@ -901,12 +910,10 @@ func (t *Table) ToMap(axis Axis) map[interface{}]interface{} {
 
 	headerName, headerSlice, vals = t.getAxisAll(axis)
 
-	// index := t.Index.Slice
 	for i := 0; i < len(headerSlice); i++ {
 		m[headerSlice[i]] = vals[i]
 	}
-	axis.Opposite()
-	headerName, headerSlice = t.getAxisLabels(axis)
+	headerName, headerSlice = t.getAxisLabels(axis.Opposite())
 	m[headerName] = headerSlice
 
 	return m
