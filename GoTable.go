@@ -845,22 +845,70 @@ func Concat(axis int, tables ...*Table) *Table {
 	return t
 }
 
-// ToMap converts a Table to a map along a given axis (discards other axis)
-func (t *Table) ToMap(axis int) map[interface{}]interface{} {
-	m := make(map[interface{}]interface{})
+func (t *Table) getAxisLabels(axis Axis) (headerName interface{}, headerSlice []interface{}) {
 	if axis == 0 {
-		index := t.Index.Slice
-		for i := 0; i < len(index); i++ {
-			m[index[i]] = t.Vals[i]
-		}
-		m[t.Header.Header] = t.Header.Slice
+		headerName = t.Index.Header
+		headerSlice = t.Index.Slice
 	} else if axis == 1 {
-		header := t.Header.Slice
-		for i := 0; i < len(header); i++ {
-			m[header[i]] = GetTranspose(t.Vals, i)
-		}
-		m[t.Index.Header] = t.Index.Slice
+		headerName = t.Header.Header
+		headerSlice = t.Header.Slice
 	}
+	return
+}
+
+func (t *Table) getOrientation(axis Axis) *Table {
+	if axis == 1 {
+		t = t.Transpose()
+	} else if axis != 0 {
+		panic("panic")
+	}
+	return t
+}
+
+func (t *Table) getAxisAll(axis Axis) (headerName interface{}, headerSlice []interface{}, vals [][]interface{}) {
+	headerName, headerSlice = t.getAxisLabels(axis)
+	vals = t.getOrientation(axis).Vals
+
+	return headerName, headerSlice, vals
+}
+
+type Axis uint8
+
+// Axis.checkError checks to see whether axis is an int other than 0 and 1
+func (a *Axis) checkError() {
+	if (*a != 0) && (*a != 1) {
+		panic("panic")
+	}
+}
+
+// Axis.Opposite changes 0 to 1 and 1 to 0
+func (a *Axis) Opposite() {
+	a.checkError()
+	if *a == 0 {
+		*a = 1
+	} else {
+		*a = 0
+	}
+}
+
+// ToMap converts a Table to a map along a given axis (discards other axis)
+func (t *Table) ToMap(axis Axis) map[interface{}]interface{} {
+	m := make(map[interface{}]interface{})
+
+	var headerName interface{}
+	var headerSlice []interface{}
+	var vals [][]interface{}
+
+	headerName, headerSlice, vals = t.getAxisAll(axis)
+
+	// index := t.Index.Slice
+	for i := 0; i < len(headerSlice); i++ {
+		m[headerSlice[i]] = vals[i]
+	}
+	axis.Opposite()
+	headerName, headerSlice = t.getAxisLabels(axis)
+	m[headerName] = headerSlice
+
 	return m
 }
 

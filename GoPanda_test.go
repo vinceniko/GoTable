@@ -302,8 +302,14 @@ func TestConcat(t *testing.T) {
 
 func TestToMap(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
-	fmt.Println(table1.ToMap(0))
+	fmt.Println(table1.ToMap(Axis(0)))
 	// map[wg:[34 .8] ret:[4 9.6] Columns:[Int Float] eff:[1 4.2] efe:[2 1.32] ffs:[52 2.1]]
-	fmt.Println(table1.ToMap(1))
+	fmt.Println(table1.ToMap(Axis(1)))
 	// map[Int:[1 3 2 52 34 4] Float:[4.2 5.32 1.32 2.1 .8 9.6] String:[eff efe efe ffs wg ret]]
+}
+
+func TestAxis(t *testing.T) {
+	myaxis := Axis(0)
+	myaxis.Opposite()
+	fmt.Println(myaxis)
 }
