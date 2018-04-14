@@ -140,7 +140,7 @@ func CreateHeadMS(it []interface{}) MappedSlice {
 	return ms
 }
 
-func CreateGenMS(axis int, it []interface{}) MappedSlice {
+func CreateGenMS(axis _Axis, it []interface{}) MappedSlice {
 	var ms MappedSlice
 	if axis == 0 {
 		ms = CreateMS(it, "Index")
@@ -151,7 +151,7 @@ func CreateGenMS(axis int, it []interface{}) MappedSlice {
 	return ms
 }
 
-func CreateNumMS(axis int, index int) MappedSlice {
+func CreateNumMS(axis _Axis, index int) MappedSlice {
 	ms := CreateGenMS(axis, rangeUntil(index))
 
 	return ms
@@ -203,37 +203,24 @@ func FromSlice(c converter2D, header bool, index bool) *Table {
 }
 
 // FromMap creates a Table from a map along a given axis ie. keys become headers or index vals
-func FromMap(axis int, m map[interface{}]interface{}) *Table {
+func FromMap(axis _Axis, m map[interface{}]interface{}) *Table {
 	var t *Table
 
 	mLength := len(m)
 
+	index := make([]interface{}, mLength)
+	vals := make([][]interface{}, mLength)
+	var i int
+	for key, row := range m { // seperate keys and vals into own slices
+		index[i] = key.(interface{})
+		vals[i] = row.([]interface{})
+		i++
+	}
+	slice := mergeIndex2D(index, vals)
+	slice = getValsOrient(axis, slice)
 	if axis == 0 {
-
-		index := make([]interface{}, mLength)
-		vals := make([][]interface{}, mLength)
-		var i int
-		for key, row := range m { // seperate keys into own slice
-			index[i] = key.(interface{})
-			vals[i] = row.([]interface{})
-			i++
-		}
-
-		slice := mergeIndex2D(index, vals)
-
 		t = FromSlice(interface2D{&slice}, false, true)
 	} else if axis == 1 {
-		index := make([]interface{}, mLength)
-		vals := make([][]interface{}, mLength)
-		var i int
-		for key, row := range m { // seperate keys and vals into own slices
-			index[i] = key.(interface{})
-			vals[i] = row.([]interface{})
-			i++
-		}
-		slice := mergeIndex2D(index, vals)
-		slice = SliceTranspose(slice)
-
 		t = FromSlice(interface2D{&slice}, true, false)
 	}
 	return t
@@ -361,9 +348,9 @@ func SliceTranspose(s [][]interface{}) [][]interface{} {
 func (t *Table) Transpose() *Table {
 	t0 := Table{}
 	t0.Vals = SliceTranspose(t.Vals)
-	oldHeader := t.Header
-	t0.Header = t.Index
-	t0.Index = oldHeader
+	ms := t.getAxisMS(1)
+	t0.Header = t.getAxisMS(0)
+	t0.Index = ms
 
 	return &t0
 }
@@ -413,57 +400,35 @@ func (t *Table) PrintTable() {
 	table.Render()
 }
 
-func (t *Table) SliceLoc(axis int, names ...string) *Table {
+// SliceLoc returns table selections found on 1 axis by using name selections
+func (t *Table) SliceLoc(axis _Axis, names ...string) *Table {
 	t0 := Table{}
 
-	var m map[interface{}][]int
-	var vals [][]interface{} = t.Vals
+	ms := t.getAxisMS(axis)
+	vals := getValsOrient(axis, t.Vals)
 	var outVals [][]interface{}
 	var outNames []interface{}
 
 	for _, name := range names {
-		if axis == 0 {
-			m = t.Index.Map
-
-			if indices, ok := m[name]; ok {
-				for _, index := range indices {
-					outVals = append(outVals, vals[index])
-					outNames = append(outNames, name)
-				}
-			} else {
-				panic("panic")
+		if indices, ok := ms.Map[name]; ok {
+			for _, index := range indices {
+				outVals = append(outVals, vals[index])
+				outNames = append(outNames, name)
 			}
-
-		} else if axis == 1 {
-			m = t.Header.Map
-
-			if indices, ok := m[name]; ok {
-				for _, index := range indices {
-					outVals = append(outVals, GetTranspose(vals, index))
-					outNames = append(outNames, name)
-				}
-			} else {
-				panic("panic")
-			}
+		} else {
+			panic("panic")
 		}
 	}
 
-	if axis == 0 {
-		ms := CreateMS(outNames, t.Index.Header)
-		t0.Index = ms
-		t0.Header = t.Header
-		t0.Vals = outVals
-	} else if axis == 1 {
-		ms := CreateMS(outNames, t.Header.Header)
-		t0.Index = t.Index
-		ms.Header = t.Header.Header
-		t0.Header = ms
-		t0.Vals = SliceTranspose(outVals)
-	}
+	ms = CreateMS(outNames, ms.Header)
+	t0.Index = ms
+	t0.Header = t.getAxisMS(axis.Opposite())
+	t0.Vals = outVals
 
-	return &t0
+	return t0.getTableOrientation(axis)
 }
 
+// Loc uses name selections to find a selected subsections of indexed rows and columns on both axes
 func (t *Table) Loc(rows []string, cols []string) *Table {
 	t0 := t
 	if len(rows) > 0 {
@@ -476,42 +441,28 @@ func (t *Table) Loc(rows []string, cols []string) *Table {
 	return t0
 }
 
-// SliceILoc returns an interface slice for a selected subset of indexed columns or Vals found in a Table object--basically a modified slice of Table.values matched against the correspinding Table.Index or Table.Header field (which is selected with the axis parameter). Panics if index is out of the bounds of the axis
-func (t *Table) SliceILoc(axis int, indices ...int) *Table {
+// SliceILoc returns table selections found on 1 axis by using index selections
+func (t *Table) SliceILoc(axis _Axis, indices ...int) *Table {
 	t0 := Table{}
 
-	var vals [][]interface{} = t.Vals
+	ms := t.getAxisMS(axis)
+	vals := getValsOrient(axis, t.Vals)
 	outVals := make([][]interface{}, len(indices))
 	outNames := make([]interface{}, len(indices))
 
 	for i, index := range indices {
-		if axis == 0 {
-			outVals[i] = vals[index]
-			outNames[i] = t.Index.Slice[index]
-		} else if axis == 1 {
-			vals = SliceTranspose(vals)
-			outVals[i] = vals[index]
-			outNames[i] = t.Header.Slice[index]
-		}
+		outVals[i] = vals[index]
+		outNames[i] = ms.Slice[index]
 	}
 
-	if axis == 0 {
-		ms := CreateMS(outNames, t.Index.Header)
-		t0.Index = ms
-		t0.Header = t.Header
-		t0.Vals = outVals
-	} else if axis == 1 {
-		ms := CreateMS(outNames, t.Header.Header)
-		t0.Index = t.Index
-		ms.Header = t.Header.Header
-		t0.Header = ms
-		t0.Vals = SliceTranspose(outVals)
-	}
+	t0.Index = CreateMS(outNames, ms.Header)
+	t0.Header = t.getAxisMS(axis.Opposite())
+	t0.Vals = outVals
 
-	return &t0
+	return t0.getTableOrientation(axis)
 }
 
-// ILoc uses SliceILoc to find a selected subsections of indexed rows and columns on both axes (using Table.Index.Vals and Table.Header) and returns a new Table of the subsection
+// ILoc uses index selections to find a selected subsections of indexed rows and columns on both axes
 func (t *Table) ILoc(rows []int, cols []int) *Table {
 	t0 := t
 	if len(rows) > 0 {
@@ -525,70 +476,29 @@ func (t *Table) ILoc(rows []int, cols []int) *Table {
 
 }
 
-func (t *Table) GenSliceLoc(axis int, values ...interface{}) *Table {
-	t0 := Table{}
-
-	var m map[interface{}][]int
-	var vals [][]interface{} = t.Vals
-	var outVals [][]interface{}
-	var outNames []interface{}
+// GenSliceLoc returns selections found on 1 axis by using 1 or more selectors of interface types (both string and int can be used). GenSliceLoc combines the functionality of SliceLoc and SliceILoc
+func (t *Table) GenSliceLoc(axis _Axis, values ...interface{}) *Table {
+	t0 := &Table{}
+	t0.Index.Header = t.getAxisMS(axis).Header
+	t0.Header = t.getAxisMS(axis.Opposite())
+	t1 := &Table{}
 
 	for _, val := range values {
 		switch v := val.(type) {
 		case string:
-			if axis == 0 {
-				m = t.Index.Map
-
-				if indices, ok := m[v]; ok {
-					for _, index := range indices {
-						outVals = append(outVals, vals[index])
-						outNames = append(outNames, v)
-					}
-				} else {
-					panic("panic")
-				}
-
-			} else if axis == 1 {
-				m = t.Header.Map
-
-				if indices, ok := m[v]; ok {
-					for _, index := range indices {
-						outVals = append(outVals, GetTranspose(vals, index))
-						outNames = append(outNames, v)
-					}
-				} else {
-					panic("panic")
-				}
-			}
+			t1 = t.SliceLoc(axis, v)
 		case int:
-			if axis == 0 {
-				outVals = append(outVals, vals[v])
-				outNames = append(outNames, t.Index.Slice[v])
-			} else if axis == 1 {
-				vals = SliceTranspose(vals)
-				outVals = append(outVals, vals[v])
-				outNames = append(outNames, t.Header.Slice[v])
-			}
+			t1 = t.SliceILoc(axis, v)
 		}
+		t1 = t1.getTableOrientation(axis)
+		t0.AddSlice(0, t1.getAxisMS(0).Slice[0], getValsOrient(0, t1.Vals)[0])
 	}
 
-	if axis == 0 {
-		ms := CreateMS(outNames, t.Index.Header)
-		t0.Index = ms
-		t0.Header = t.Header
-		t0.Vals = outVals
-	} else if axis == 1 {
-		ms := CreateMS(outNames, t.Header.Header)
-		t0.Index = t.Index
-		ms.Header = t.Header.Header
-		t0.Header = ms
-		t0.Vals = SliceTranspose(outVals)
-	}
-
-	return &t0
+	return t0.getTableOrientation(axis)
 }
 
-func (t *Table) AddSlice(axis int, header interface{}, slice []interface{}) {
+// AddSlice appends to the end of the table on an axis
+func (t *Table) AddSlice(axis _Axis, header interface{}, slice []interface{}) {
 	var ms MappedSlice
 	if axis == 0 {
 		ms = t.Index
@@ -605,16 +515,9 @@ func (t *Table) AddSlice(axis int, header interface{}, slice []interface{}) {
 
 // // PairedSliceLoc is similar to the other SliceLoc functions but returns the passed in names and the results. PairedSliceLoc does not panic but instead returns empty slices where it could not find a name.
 // [efe efe trer hello] [[3 5.32] [2 1.32] [<nil> <nil>] [<nil> <nil>]]
-func (t *Table) PairedSliceLoc(axis int, vals ...interface{}) ([]interface{}, [][]interface{}) {
+func (t *Table) PairedSliceLoc(axis _Axis, vals ...interface{}) ([]interface{}, [][]interface{}) {
 	slice := t.Vals
-	var searchMap map[interface{}][]int
-	if axis == 0 {
-		searchMap = t.Index.Map
-	} else if axis == 1 {
-		searchMap = t.Header.Map
-	} else {
-		panic("panic")
-	}
+	searchMap := t.getAxisMS(axis).Map
 
 	// needs appends because unless we itterate through all indices in map, we wont know how big to make the returned slices
 	outSlice := make([][]interface{}, 0)
@@ -778,98 +681,75 @@ func getuniqs(slice []interface{}) []interface{} {
 // | gr     |   8 |  56.7 |
 // | vin    |   9 |  1.23 |
 // +--------+-----+-------+
-func Concat(axis int, tables ...*Table) *Table {
+func Concat(axis _Axis, tables ...*Table) *Table {
 	t := tables[0]
 	m := make(map[interface{}]interface{})
 
-	if axis == 0 {
-		var totalLength int
-		var newHeaderVals []interface{}
-		for _, table := range tables {
-			totalLength += table.Header.Length
-			newHeaderVals = append(newHeaderVals, table.Header.Slice...) // append all header names together
-		}
-
-		indexVals := make([]interface{}, 0)
-		var newNames []interface{}
-
-		currIndex := 0
-		indexptr := &currIndex
-
-		for _, table := range tables {
-			var names []interface{}
-			var slices [][]interface{}
-			uniqs := getuniqs(table.Index.Slice)
-			names, slices = table.PairedSliceLoc(0, uniqs...)
-
-			newNames, m = createDupeMap(m, names, slices, table.Header.Length, totalLength, indexptr)
-			indexVals = append(indexVals, newNames...)
-		}
-
-		indexVals = getuniqs(indexVals)
-
-		t = FromMap(0, m)
-		t.Index.Header = tables[0].Index.Header
-		t.Header = CreateMS(newHeaderVals, tables[0].Header.Header)
-		t = t.GenSliceLoc(0, indexVals...) // needed to rearrange into original order after map disrupts order
-	} else if axis == 1 {
-
-		var totalLength int
-		var newIndexVals []interface{}
-		for _, table := range tables {
-			totalLength += table.Index.Length
-			newIndexVals = append(newIndexVals, table.Index.Slice...) // append all index names together
-		}
-
-		headerVals := make([]interface{}, 0)
-		var newNames []interface{}
-
-		currIndex := 0
-		indexptr := &currIndex
-		for _, table := range tables {
-			var names []interface{}
-			var slices [][]interface{}
-			uniqs := getuniqs(table.Header.Slice)
-			names, slices = table.PairedSliceLoc(1, uniqs...)
-
-			newNames, m = createDupeMap(m, names, slices, table.Index.Length, totalLength, indexptr)
-			headerVals = append(headerVals, newNames...)
-		}
-
-		headerVals = getuniqs(headerVals)
-
-		t = FromMap(1, m)
-		t.Index = CreateMS(newIndexVals, tables[0].Index.Header)
-		t = t.GenSliceLoc(1, headerVals...) // needed to rearrange into original order after map disrupts order
+	var totalLength int
+	var newHeaderVals []interface{}
+	for _, table := range tables {
+		locMS := table.getAxisMS(axis)
+		totalLength += locMS.Length
+		newHeaderVals = append(newHeaderVals, locMS.Slice...) // append all header names together
 	}
+
+	indexVals := make([]interface{}, 0)
+	var newNames []interface{}
+
+	currIndex := 0
+	indexptr := &currIndex
+
+	ms1 := t.getAxisMS(axis)
+	axis = axis.Opposite()
+	ms2 := t.getAxisMS(axis)
+	for _, table := range tables {
+		locMS1 := table.getAxisMS(axis)
+		locMS2 := table.getAxisMS(axis.Opposite())
+		uniqs := getuniqs(locMS1.Slice)
+		names, slices := table.PairedSliceLoc(axis, uniqs...)
+
+		newNames, m = createDupeMap(m, names, slices, locMS2.Length, totalLength, indexptr)
+		indexVals = append(indexVals, newNames...)
+	}
+
+	indexVals = getuniqs(indexVals)
+
+	t = FromMap(0, m)
+	t.Index.Header = ms2.Header
+	t.Header = CreateMS(newHeaderVals, ms1.Header)
+	t = t.GenSliceLoc(0, indexVals...) // needed to rearrange into original order after map disrupts order
+	t = t.getTableOrientation(axis)    // flip if axis == 1
+
 	return t
 }
 
-func (t *Table) getAxisLabels(axis _Axis) (headerName interface{}, headerSlice []interface{}) {
+func (t *Table) getAxisMS(axis _Axis) (ms MappedSlice) {
 	if axis == 0 {
-		headerName = t.Index.Header
-		headerSlice = t.Index.Slice
+		ms = t.Index
 	} else if axis == 1 {
-		headerName = t.Header.Header
-		headerSlice = t.Header.Slice
+		ms = t.Header
 	}
 	return
 }
 
-func (t *Table) getOrientation(axis _Axis) *Table {
+// getValsOrient returns vals in the orientation based on the passed in axis
+func getValsOrient(axis _Axis, vals [][]interface{}) [][]interface{} {
 	if axis == 1 {
-		t = t.Transpose()
+		return SliceTranspose(vals)
+	} else if axis != 0 {
+		panic("panic")
+	}
+	return vals
+}
+
+// getValsOrient returns vals in the orientation based on the passed in axis
+func (t *Table) getTableOrientation(axis _Axis) *Table {
+	if axis == 1 {
+		return t.Transpose()
 	} else if axis != 0 {
 		panic("panic")
 	}
 	return t
-}
-
-func (t *Table) getAxisAll(axis _Axis) (headerName interface{}, headerSlice []interface{}, vals [][]interface{}) {
-	headerName, headerSlice = t.getAxisLabels(axis)
-	vals = t.getOrientation(axis).Vals
-
-	return headerName, headerSlice, vals
 }
 
 type _Axis uint8
@@ -882,18 +762,19 @@ func (a *_Axis) checkError() {
 }
 
 // _Axis.Opposite changes 0 to 1 and 1 to 0
-func (a *_Axis) Opposite() _Axis {
-	a.checkError()
-	if *a == 0 {
-		*a = 1
+func (axis _Axis) Opposite() _Axis {
+	axis.checkError()
+	var a _Axis
+	if axis == 0 {
+		a = 1
 	} else {
-		*a = 0
+		a = 0
 	}
-	return *a
+	return a
 }
 
 // Axis creates a new axis object and checks for error
-func Axis(axis int) _Axis {
+func Axis(axis _Axis) _Axis {
 	a := _Axis(axis)
 	a.checkError()
 
@@ -904,17 +785,15 @@ func Axis(axis int) _Axis {
 func (t *Table) ToMap(axis _Axis) map[interface{}]interface{} {
 	m := make(map[interface{}]interface{})
 
-	var headerName interface{}
-	var headerSlice []interface{}
-	var vals [][]interface{}
-
-	headerName, headerSlice, vals = t.getAxisAll(axis)
-
-	for i := 0; i < len(headerSlice); i++ {
-		m[headerSlice[i]] = vals[i]
+	var labels MappedSlice
+	labels = t.getAxisMS(axis)
+	for i := 0; i < len(labels.Slice); i++ {
+		m[labels.Slice[i]] = getValsOrient(axis, t.Vals)[i]
 	}
-	headerName, headerSlice = t.getAxisLabels(axis.Opposite())
-	m[headerName] = headerSlice
+
+	// headers
+	labels = t.getAxisMS(axis.Opposite())
+	m[labels.Header] = labels.Slice
 
 	return m
 }

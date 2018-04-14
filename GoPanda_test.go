@@ -117,16 +117,31 @@ func TestSliceLoc0(t *testing.T) {
 	// +--------+-------+
 }
 
-func TestSliceILoc0(t *testing.T) {
+func TestSliceILoc(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
 
-	test := table1.SliceILoc(0, 0)
+	test := table1.SliceILoc(0, 2, 3)
 	test.PrintTable()
 	// +--------+-----+-------+
 	// | STRING | INT | FLOAT |
 	// +--------+-----+-------+
-	// | eff    |   1 |   4.2 |
+	// | efe    |   2 |  1.32 |
+	// | ffs    |  52 |   2.1 |
 	// +--------+-----+-------+
+
+	test = table1.SliceILoc(1, 0, 1)
+	fmt.Println("SliceILoc(1, 0, 1)")
+	test.PrintTable()
+	// +--------+-----+
+	// | STRING | INT |
+	// +--------+-----+
+	// | eff    |   1 |
+	// | efe    |   3 |
+	// | efe    |   2 |
+	// | ffs    |  52 |
+	// | wg     |  34 |
+	// | ret    |   4 |
+	// +--------+-----+
 }
 
 func TestILoc(t *testing.T) {
@@ -153,6 +168,27 @@ func TestTranspose(t *testing.T) {
 	// | Int     |   1 |    3 |    2 |  52 | 34 |   4 |
 	// | Float   | 4.2 | 5.32 | 1.32 | 2.1 | .8 | 9.6 |
 	// +---------+-----+------+------+-----+----+-----+
+
+	test1 = test1.Transpose()
+	test1.PrintTable()
+}
+
+func TestGenSliceLoc(t *testing.T) {
+	table1 := FromCSVFile(file1, true, true)
+
+	fmt.Println("TestGenSliceLoc")
+	test := table1.GenSliceLoc(0, 5, "efe", "ret")
+	test.PrintTable()
+
+	// +--------+-----+-------+
+	// | STRING | INT | FLOAT |
+	// +--------+-----+-------+
+	// | efe    |   3 |  5.32 |
+	// | efe    |   2 |  1.32 |
+	// +--------+-----+-------+
+
+	test = table1.GenSliceLoc(1, 0)
+	test.PrintTable()
 }
 
 func TestSetIndex(t *testing.T) {
@@ -170,24 +206,6 @@ func TestSetIndex(t *testing.T) {
 	// |  34 | wg     |    .8 |
 	// |   4 | ret    |   9.6 |
 	// +-----+--------+-------+
-}
-
-func TestGenSliceLoc(t *testing.T) {
-	table1 := FromCSVFile(file1, true, true)
-
-	test := table1.GenSliceLoc(1, 0)
-	test.PrintTable()
-
-	// +--------+-----+
-	// | STRING | INT |
-	// +--------+-----+
-	// | eff    |   1 |
-	// | efe    |   3 |
-	// | efe    |   2 |
-	// | ffs    |  52 |
-	// | wg     |  34 |
-	// | ret    |   4 |
-	// +--------+-----+
 }
 
 func TestFromMap(t *testing.T) {
@@ -224,6 +242,9 @@ func TestAddSlice(t *testing.T) {
 	// | ret    |   4 |   9.6 |
 	// | check  |   0 |     1 |
 	// +--------+-----+-------+
+
+	table1.AddSlice(1, "check", []interface{}{0, 1, 2, 3, 4, 5, 6})
+	table1.PrintTable()
 }
 
 func TestPairedSliceLoc(t *testing.T) {
@@ -261,7 +282,7 @@ func TestConcat(t *testing.T) {
 	// | vin    |   9 |  1.23 |
 	// +--------+-----+-------+
 
-	tableOut := Concat(0, table1, table2)
+	tableOut := Concat(Axis(0), table1, table2)
 	tableOut.PrintTable()
 
 	// --------+-----+-------+-----+-------+
@@ -277,7 +298,7 @@ func TestConcat(t *testing.T) {
 	// | vin    |     |       |   9 |  1.23 |
 	// +--------+-----+-------+-----+-------+
 
-	tableOut = Concat(1, table1, table2)
+	tableOut = Concat(Axis(1), table1, table2)
 	tableOut.PrintTable()
 
 	// +--------+-----+-------+
