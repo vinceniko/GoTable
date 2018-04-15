@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/csv"
 	"errors"
+	"log"
 	"os"
 	"strconv"
 
@@ -229,14 +230,14 @@ func FromMap(axis _Axis, m map[interface{}]interface{}) *Table {
 func FromCSVFile(path string, Header bool, Index bool) *Table {
 	file, err := os.Open(path)
 	if err != nil {
-		panic("panic")
+		log.Fatalln(err)
 	}
 
 	reader := csv.NewReader(file)
 
 	data, err := reader.ReadAll()
 	if err != nil {
-		panic("panic")
+		log.Fatalln(err)
 	}
 
 	defer file.Close()
@@ -412,7 +413,7 @@ func (t *Table) SliceLoc(axis _Axis, names ...string) *Table {
 				outNames = append(outNames, name)
 			}
 		} else {
-			panic("panic")
+			log.Fatalln(errors.New("Key not found in map"))
 		}
 	}
 
@@ -733,7 +734,7 @@ func getValsOrient(axis _Axis, vals [][]interface{}) [][]interface{} {
 	if axis == 1 {
 		return SliceTranspose(vals)
 	} else if axis != 0 {
-		panic("panic")
+		log.Fatalln(errors.New("Axis must be defined as 0 or 1"))
 	}
 	return vals
 }
@@ -743,7 +744,7 @@ func (t *Table) getTableOrientation(axis _Axis) *Table {
 	if axis == 1 {
 		return t.Transpose()
 	} else if axis != 0 {
-		panic("panic")
+		log.Fatalln(errors.New("Axis must be defined as 0 or 1"))
 	}
 	return t
 }
@@ -753,7 +754,7 @@ type _Axis uint8
 // _Axis.checkError checks to see whether axis is an int other than 0 and 1
 func (a *_Axis) checkError() {
 	if (*a != 0) && (*a != 1) {
-		panic("panic")
+		log.Fatalln(errors.New("Axis must be defined as 0 or 1"))
 	}
 }
 

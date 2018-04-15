@@ -343,7 +343,6 @@ func TestToSlice(t *testing.T) {
 
 func TestGeneral(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
-	fmt.Println(table1.SliceLoc(Axis(1), "Int").Transpose().Vals)
-
-	fmt.Println(table1.Loc([]string{"efe"}, []string{}).Vals)
+	table1.ResetIndex()
+	table1.GenSliceLoc(Axis(0), 1)
 }
