@@ -89,10 +89,10 @@ func TestResetIndex(t *testing.T) {
 	// +-------+--------+-----+-------+
 }
 
-func TestSliceLoc0(t *testing.T) {
+func TestSliceLoc(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
 
-	test := table1.SliceLoc(0, "efe")
+	test := table1.SliceLoc(Axis(0), "efe")
 	test.PrintTable()
 
 	// +--------+-----+-------+
@@ -120,7 +120,7 @@ func TestSliceLoc0(t *testing.T) {
 func TestSliceILoc(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
 
-	test := table1.SliceILoc(0, 2, 3)
+	test := table1.SliceILoc(Axis(0), 2, 3)
 	test.PrintTable()
 	// +--------+-----+-------+
 	// | STRING | INT | FLOAT |
@@ -129,7 +129,7 @@ func TestSliceILoc(t *testing.T) {
 	// | ffs    |  52 |   2.1 |
 	// +--------+-----+-------+
 
-	test = table1.SliceILoc(1, 0, 1)
+	test = table1.SliceILoc(Axis(1), 0, 1)
 	fmt.Println("SliceILoc(1, 0, 1)")
 	test.PrintTable()
 	// +--------+-----+
@@ -177,7 +177,7 @@ func TestGenSliceLoc(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
 
 	fmt.Println("TestGenSliceLoc")
-	test := table1.GenSliceLoc(0, 5, "efe", "ret")
+	test := table1.GenSliceLoc(Axis(0), 0, 5, "efe", "ret")
 	test.PrintTable()
 
 	// +--------+-----+-------+
@@ -187,7 +187,7 @@ func TestGenSliceLoc(t *testing.T) {
 	// | efe    |   2 |  1.32 |
 	// +--------+-----+-------+
 
-	test = table1.GenSliceLoc(1, 0)
+	test = table1.GenSliceLoc(Axis(1), 0)
 	test.PrintTable()
 }
 
@@ -214,7 +214,7 @@ func TestFromMap(t *testing.T) {
 	m["Test2"] = []interface{}{"4Test", "5Test", "6Test"}
 	m["Test3"] = []interface{}{"7Test", "8Test", "9Test"}
 
-	tableOut := FromMap(1, m)
+	tableOut := FromMap(Axis(1), m)
 	tableOut.PrintTable()
 
 	// +-------+-------+-------+-------+
@@ -228,7 +228,7 @@ func TestFromMap(t *testing.T) {
 
 func TestAddSlice(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
-	table1.AddSlice(0, "check", []interface{}{0, 1})
+	table1.AddSlice(Axis(0), "check", []interface{}{0, 1})
 	table1.PrintTable()
 
 	// +--------+-----+-------+
@@ -250,7 +250,7 @@ func TestAddSlice(t *testing.T) {
 func TestPairedSliceLoc(t *testing.T) {
 	table1 := FromCSVFile(file1, true, true)
 
-	fmt.Println(table1.PairedSliceLoc(0, "efe", "trer", "hello"))
+	fmt.Println(table1.PairedSliceLoc(Axis(0), "efe", "trer", "hello"))
 	// [efe efe trer hello] [[3 5.32] [2 1.32] [<nil> <nil>] [<nil> <nil>]]
 }
 
@@ -333,4 +333,17 @@ func TestAxis(t *testing.T) {
 	myaxis := Axis(0)
 	myaxis.Opposite()
 	fmt.Println(myaxis)
+}
+
+func TestToSlice(t *testing.T) {
+	table1 := FromCSVFile(file1, true, true)
+	fmt.Println(table1.ToSlice())
+	// [[String Int Float] [eff 1 4.2] [efe 3 5.32] [efe 2 1.32] [ffs 52 2.1] [wg 34 .8] [ret 4 9.6]]
+}
+
+func TestGeneral(t *testing.T) {
+	table1 := FromCSVFile(file1, true, true)
+	fmt.Println(table1.SliceLoc(Axis(1), "Int").Transpose().Vals)
+
+	fmt.Println(table1.Loc([]string{"efe"}, []string{}).Vals)
 }

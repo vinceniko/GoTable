@@ -117,11 +117,10 @@ type Table struct {
 }
 
 type MappedSlice struct {
-	Header  interface{}
-	Map     map[interface{}][]int // holds indexes of names matched against vals
-	Slice   []interface{}
-	Length  int
-	counter map[interface{}]int
+	Header interface{}
+	Map    map[interface{}][]int // holds indexes of names matched against vals
+	Slice  []interface{}
+	Length int
 }
 
 func CreateMS(it []interface{}, header interface{}) MappedSlice {
@@ -259,7 +258,7 @@ func FromCSVFile(path string, Header bool, Index bool) *Table {
 // |     5 | ret    |   4 |   9.6 |
 // +-------+--------+-----+-------+
 func (t *Table) ResetIndex() {
-	t.mergeBoth()
+	t = t.mergeBoth()
 	numRows := t.Index.Length
 	t.Index = CreateNumMS(0, numRows)
 }
@@ -275,8 +274,8 @@ func (t *Table) SetIndex(column interface{}) {
 		col = t.Header.Slice[val].(string)
 	}
 	ms := CreateMS(t.GetCols(column)[0], col)
-	t.mergeBoth() // transfer current index into cols
-	t.Index = ms  // set new index
+	t = t.mergeBoth() // transfer current index into cols
+	t.Index = ms      // set new index
 	t.DropCol(col)
 }
 
@@ -339,12 +338,6 @@ func SliceTranspose(s [][]interface{}) [][]interface{} {
 }
 
 // Transpose transposes the entire table. indexHeader param is used to set the new indexHeader
-// +---------+-----+------+------+-----+----+-----+
-// | COLUMNS | EFF | EFE  | EFE  | FFS | WG | RET |
-// +---------+-----+------+------+-----+----+-----+
-// | Int     |   1 |    3 |    2 |  52 | 34 |   4 |
-// | Float   | 4.2 | 5.32 | 1.32 | 2.1 | .8 | 9.6 |
-// +---------+-----+------+------+-----+----+-----+
 func (t *Table) Transpose() *Table {
 	t0 := Table{}
 	t0.Vals = SliceTranspose(t.Vals)
@@ -355,7 +348,7 @@ func (t *Table) Transpose() *Table {
 	return &t0
 }
 
-// mergeIndex2D is used to merge Table.Index.vals with Table.Vals for resetting the Table index
+// mergeIndex2D is used to merge Table.Index.Slice with Table.Vals for resetting the Table index
 func mergeIndex2D(index []interface{}, vals [][]interface{}) [][]interface{} {
 	v := make([][]interface{}, len(vals))
 	for i, row := range vals {
@@ -369,7 +362,7 @@ func mergeIndex2D(index []interface{}, vals [][]interface{}) [][]interface{} {
 	return v
 }
 
-// mergeIndex1D is used to merge Table.Index.Header with Table.Header for resetting the Table index
+// mergeIndex1D is used to merge Table.Index.Header with Table.Header.Slice for resetting the Table index
 func mergeIndex1D(index interface{}, vals []interface{}) []interface{} {
 	v := make([]interface{}, len(vals)+1)
 	v[0] = index
@@ -379,13 +372,16 @@ func mergeIndex1D(index interface{}, vals []interface{}) []interface{} {
 	return v
 }
 
-// mergeBoth calls mergeIndex1D and mergeIndex2D and reassigns Table fields inplace. Table.Index and Table.Header remain unchanged
-func (t *Table) mergeBoth() {
+// mergeBoth calls mergeIndex1D and mergeIndex2D and reassigns Table fields inplace. Table.Index.Header and Table.Header.Header remain unchanged
+func (t *Table) mergeBoth() *Table {
+	t0 := t
 	newHeader := mergeIndex1D(t.Index.Header, t.Header.Slice)
-	t.Header = CreateGenMS(1, newHeader)
+	t0.Header = CreateGenMS(1, newHeader)
 
 	newVals := mergeIndex2D(t.Index.Slice, t.Vals)
-	t.Vals = newVals
+	t0.Vals = newVals
+
+	return t0
 }
 
 // PrintTable prints the table using non-std Ascii Table package
@@ -796,6 +792,18 @@ func (t *Table) ToMap(axis _Axis) map[interface{}]interface{} {
 	m[labels.Header] = labels.Slice
 
 	return m
+}
+
+// ToSlice converts a Table to a slice
+func (t *Table) ToSlice() [][]interface{} {
+	t0 := t.mergeBoth()
+	vals := t0.Vals
+	outVals := make([][]interface{}, len(vals)+1)
+	outVals[0] = t0.Header.Slice
+	for i, val := range vals {
+		outVals[i+1] = val
+	}
+	return outVals
 }
 
 func main() {
